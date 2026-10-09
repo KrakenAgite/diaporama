@@ -30,7 +30,7 @@ class Settings(context: Context) {
     /** Intervalle en minutes. */
     var intervalMinutes by int(K_INTERVAL_MIN, 15)
     var shake by bool(K_SHAKE, false)
-    var unlock by bool(K_UNLOCK, false)
+    var screenOff by bool(K_SCREEN_OFF, true)
     var doubleTap by bool(K_DOUBLE_TAP, true)
     var hoursEnabled by bool(K_HOURS_ON, false)
 
@@ -64,7 +64,7 @@ class Settings(context: Context) {
         const val K_INTERVAL_ON = "interval_on"
         const val K_INTERVAL_MIN = "interval_min"
         const val K_SHAKE = "shake"
-        const val K_UNLOCK = "unlock"
+        const val K_SCREEN_OFF = "screen_off"
         const val K_DOUBLE_TAP = "double_tap"
         const val K_HOURS_ON = "hours_on"
         const val K_HOURS = "hours"

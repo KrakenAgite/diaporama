@@ -96,6 +96,10 @@ fun SettingsScreen(s: Settings) {
                     }) { Text("Définir le fond d'écran") }
                     OutlinedButton(onClick = { Settings.requestNext(ctx) }) { Text("Suivante") }
                 }
+                Text(
+                    "Dans l'aperçu, choisis « Écran d'accueil et écran de verrouillage » pour l'avoir partout.",
+                    style = MaterialTheme.typography.bodySmall
+                )
 
                 Section("Dossiers")
                 s.folders.forEach { f ->
@@ -188,7 +192,7 @@ fun SettingsScreen(s: Settings) {
                 }
                 SwitchRow("Double-tap sur le bureau", s.doubleTap) { change { s.doubleTap = it } }
                 SwitchRow("Secouer le téléphone", s.shake) { change { s.shake = it } }
-                SwitchRow("À chaque déverrouillage", s.unlock) { change { s.unlock = it } }
+                SwitchRow("À chaque mise en veille", s.screenOff) { change { s.screenOff = it } }
                 Text(
                     "Astuce : ajoute la tuile « Fond suivant » dans les réglages rapides.",
                     style = MaterialTheme.typography.bodySmall

@@ -65,9 +65,10 @@ class SlideshowWallpaperService : WallpaperService() {
             }
         }
 
-        private val unlockReceiver = object : BroadcastReceiver() {
+        /** Change à la mise en veille, sans fondu : la nouvelle photo est prête au réveil. */
+        private val screenOffReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                if (settings.unlock) next()
+                if (settings.screenOff) next(animate = false)
             }
         }
 
@@ -75,15 +76,15 @@ class SlideshowWallpaperService : WallpaperService() {
             super.onCreate(surfaceHolder)
             settings.prefs.registerOnSharedPreferenceChangeListener(this)
             registerReceiver(receiver, IntentFilter(Settings.ACTION_NEXT), RECEIVER_NOT_EXPORTED)
-            // Diffusion système protégée : le receveur doit être exporté pour la recevoir
-            registerReceiver(unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), RECEIVER_EXPORTED)
+            // Diffusion système : le receveur doit être exporté pour la recevoir
+            registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF), RECEIVER_EXPORTED)
             reloadPhotos()
         }
 
         override fun onDestroy() {
             settings.prefs.unregisterOnSharedPreferenceChangeListener(this)
             unregisterReceiver(receiver)
-            unregisterReceiver(unlockReceiver)
+            unregisterReceiver(screenOffReceiver)
             sensors.unregisterListener(this)
             main.removeCallbacksAndMessages(null)
             loaderThread.quitSafely()
@@ -100,6 +101,7 @@ class SlideshowWallpaperService : WallpaperService() {
         override fun onVisibilityChanged(v: Boolean) {
             visible = v
             if (v) {
+                draw()
                 updateShakeListener()
                 onTick()
             } else {
@@ -201,13 +203,13 @@ class SlideshowWallpaperService : WallpaperService() {
             order = photos.indices.toList().let { if (settings.shuffle) it.shuffled() else it }
         }
 
-        fun next() {
+        fun next(animate: Boolean = settings.transition) {
             main.post {
                 if (photos.isEmpty()) return@post
                 pos++
                 if (pos >= order.size) { buildOrder(); pos = 0 }
                 settings.prefs.edit { putLong(K_LAST_CHANGE, System.currentTimeMillis()) }
-                loadCurrent(animate = settings.transition)
+                loadCurrent(animate)
                 if (visible) scheduleTick()
             }
         }
