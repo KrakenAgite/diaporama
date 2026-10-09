@@ -14,6 +14,7 @@ object PhotoSource {
     fun collect(context: Context, settings: Settings): List<Uri> {
         val out = LinkedHashSet<Uri>()
         settings.folders.forEach { runCatching { walkTree(context, Uri.parse(it), out) } }
+        settings.photos.forEach { out.add(Uri.parse(it)) }
         if (settings.albums.isNotEmpty()) runCatching { queryAlbums(context, settings.albums, out) }
         return out.toList()
     }

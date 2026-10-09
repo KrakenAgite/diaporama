@@ -16,6 +16,11 @@ class Settings(context: Context) {
         get() = prefs.getStringSet(K_FOLDERS, emptySet())!!
         set(v) = prefs.edit { putStringSet(K_FOLDERS, v) }
 
+    /** Photos choisies une par une dans le sélecteur système (y compris albums Google Photos). */
+    var photos: Set<String>
+        get() = prefs.getStringSet(K_PHOTOS, emptySet())!!
+        set(v) = prefs.edit { putStringSet(K_PHOTOS, v) }
+
     /** Albums de la galerie (BUCKET_ID du MediaStore). */
     var albums: Set<String>
         get() = prefs.getStringSet(K_ALBUMS, emptySet())!!
@@ -55,6 +60,7 @@ class Settings(context: Context) {
     companion object {
         const val K_FOLDERS = "folders"
         const val K_ALBUMS = "albums"
+        const val K_PHOTOS = "photos"
         const val K_INTERVAL_ON = "interval_on"
         const val K_INTERVAL_MIN = "interval_min"
         const val K_SHAKE = "shake"

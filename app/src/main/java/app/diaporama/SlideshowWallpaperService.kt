@@ -109,7 +109,7 @@ class SlideshowWallpaperService : WallpaperService() {
         override fun onSharedPreferenceChanged(prefs: SharedPreferences, key: String?) {
             when (key) {
                 K_CURRENT, K_LAST_CHANGE -> Unit
-                Settings.K_FOLDERS, Settings.K_ALBUMS, Settings.K_SHUFFLE -> reloadPhotos()
+                Settings.K_FOLDERS, Settings.K_ALBUMS, Settings.K_PHOTOS, Settings.K_SHUFFLE -> reloadPhotos()
                 Settings.K_FILL -> draw()
                 Settings.K_SHAKE -> updateShakeListener()
                 else -> if (visible) { main.removeCallbacks(tick); scheduleTick() }

@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -59,6 +60,17 @@ fun SettingsScreen(s: Settings) {
         }
     }
 
+    // Sélecteur de photos système, ouvert sur l'onglet Albums (albums Google Photos inclus)
+    val pickPhotos = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        val clip = res.data?.clipData
+        val uris = if (clip != null) (0 until clip.itemCount).map { clip.getItemAt(it).uri }
+        else listOfNotNull(res.data?.data)
+        uris.forEach {
+            runCatching { ctx.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        }
+        if (uris.isNotEmpty()) change { s.photos = s.photos + uris.map { it.toString() } }
+    }
+
     var hasMedia by remember {
         mutableStateOf(ctx.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED)
     }
@@ -101,7 +113,36 @@ fun SettingsScreen(s: Settings) {
                 }
                 OutlinedButton(onClick = { pickFolder.launch(null) }) { Text("Ajouter un dossier") }
 
-                Section("Albums de la galerie")
+                Section("Mes albums (Google Photos…)")
+                Text(
+                    "Ouvre tes albums et sélectionne les photos (jusqu'à ${MediaStore.getPickImagesMaxLimit()} à la fois, " +
+                        "tu peux recommencer pour en ajouter).",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        pickPhotos.launch(
+                            Intent(MediaStore.ACTION_PICK_IMAGES)
+                                .putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, MediaStore.getPickImagesMaxLimit())
+                                .putExtra(MediaStore.EXTRA_PICK_IMAGES_LAUNCH_TAB, MediaStore.PICK_IMAGES_TAB_ALBUMS)
+                        )
+                    }) { Text("Choisir des photos") }
+                    if (s.photos.isNotEmpty()) {
+                        Text("${s.photos.size} photos", Modifier.weight(1f))
+                        TextButton(onClick = {
+                            s.photos.forEach {
+                                runCatching {
+                                    ctx.contentResolver.releasePersistableUriPermission(
+                                        Uri.parse(it), Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                    )
+                                }
+                            }
+                            change { s.photos = emptySet() }
+                        }) { Text("Tout retirer") }
+                    }
+                }
+
+                Section("Dossiers de la galerie")
                 if (!hasMedia) {
                     OutlinedButton(onClick = {
                         askMedia.launch(
