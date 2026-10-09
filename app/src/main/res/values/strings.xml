@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Diaporama</string>
+    <string name="wallpaper_description">Fait défiler tes photos en fond d\'écran</string>
+    <string name="tile_label">Fond suivant</string>
+</resources>
