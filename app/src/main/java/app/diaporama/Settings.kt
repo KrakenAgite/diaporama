@@ -5,7 +5,11 @@ import android.content.Intent
 import android.content.SharedPreferences
 import androidx.core.content.edit
 
-enum class FillMode(val label: String) { FILL("Remplir"), FIT("Ajuster"), CENTER("Centrer") }
+enum class FillMode(private val fr: String, private val en: String) {
+    FILL("Remplir", "Fill"), FIT("Ajuster", "Fit"), CENTER("Centrer", "Center");
+
+    val label: String get() = tr(fr, en)
+}
 
 /** Réglages partagés entre l'écran de réglages et le fond d'écran (SharedPreferences). */
 class Settings(context: Context) {

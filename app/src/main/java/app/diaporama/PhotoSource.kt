@@ -59,7 +59,7 @@ object PhotoSource {
         )?.use { c ->
             while (c.moveToNext()) {
                 val id = c.getString(0) ?: continue
-                val name = c.getString(1) ?: "Sans nom"
+                val name = c.getString(1) ?: tr("Sans nom", "Untitled")
                 counts[id] = name to (counts[id]?.second ?: 0) + 1
             }
         }

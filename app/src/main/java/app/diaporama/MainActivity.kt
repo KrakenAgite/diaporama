@@ -68,10 +68,13 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Sous-menus des réglages, dans l'ordre de la liste. */
-enum class SettingsPage(val icon: ImageVector, val label: String) {
-    PHOTOS(Icons.Outlined.PhotoLibrary, "Photos"),
-    CHANGE(Icons.Outlined.Autorenew, "Changement"),
-    DISPLAY(Icons.Outlined.Tune, "Affichage"),
+enum class SettingsPage(val icon: ImageVector, private val fr: String, private val en: String) {
+    PHOTOS(Icons.Outlined.PhotoLibrary, "Photos", "Photos"),
+    CHANGE(Icons.Outlined.Autorenew, "Changement", "Changing"),
+    DISPLAY(Icons.Outlined.Tune, "Affichage", "Display"),
+    ;
+
+    val label: String get() = tr(fr, en)
 }
 
 private val CARD = RoundedCornerShape(20.dp)
@@ -80,7 +83,7 @@ private val INTERVALS = listOf(1, 5, 15, 30, 60, 180, 720, 1440)
 private fun intervalLabel(m: Int) = when {
     m < 60 -> "$m min"
     m < 1440 -> "${m / 60} h"
-    else -> "${m / 1440} j"
+    else -> "${m / 1440} " + tr("j", "d")
 }
 
 @Composable
@@ -128,13 +131,13 @@ fun SettingsScreen(s: Settings, isActive: Boolean) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text("Diaporama n'est pas ton fond d'écran", style = MaterialTheme.typography.titleSmall)
+                            Text(tr("Diaporama n'est pas ton fond d'écran", "Diaporama isn't your wallpaper"), style = MaterialTheme.typography.titleSmall)
                             Text(
-                                "Choisis « Écran d'accueil et écran de verrouillage »",
+                                tr("Choisis « Écran d'accueil et écran de verrouillage »", "Choose “Home and lock screens”"),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        Button(onClick = { openWallpaperPicker(ctx) }) { Text("Définir") }
+                        Button(onClick = { openWallpaperPicker(ctx) }) { Text(tr("Définir", "Set")) }
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -142,12 +145,12 @@ fun SettingsScreen(s: Settings, isActive: Boolean) {
                         MenuRow(p.icon, p.label, summary(p, s)) { page = p }
                     }
                     Spacer(Modifier.height(4.dp))
-                    MenuRow(Icons.Outlined.SkipNext, "Photo suivante", null, chevron = false) { Settings.requestNext(ctx) }
+                    MenuRow(Icons.Outlined.SkipNext, tr("Photo suivante", "Next photo"), null, chevron = false) { Settings.requestNext(ctx) }
                 }
             } else {
                 Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { page = null }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Retour", "Back"))
                     }
                     Text(current.label, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
                 }
@@ -169,21 +172,21 @@ fun SettingsScreen(s: Settings, isActive: Boolean) {
 /** L'état actuel de chaque sous-menu, en quelques mots. */
 private fun summary(page: SettingsPage, s: Settings): String = when (page) {
     SettingsPage.PHOTOS -> listOfNotNull(
-        s.photos.size.takeIf { it > 0 }?.let { "$it photo" + if (it > 1) "s" else "" },
-        s.folders.size.takeIf { it > 0 }?.let { "$it dossier" + if (it > 1) "s" else "" },
-        s.albums.size.takeIf { it > 0 }?.let { "$it dossier" + (if (it > 1) "s" else "") + " de la galerie" },
-    ).joinToString(" · ").ifEmpty { "Aucune photo choisie" }
+        s.photos.size.takeIf { it > 0 }?.let { plural(it, "photo") },
+        s.folders.size.takeIf { it > 0 }?.let { plural(it, tr("dossier", "folder")) },
+        s.albums.size.takeIf { it > 0 }?.let { plural(it, tr("dossier", "gallery folder")) + tr(" de la galerie", "") },
+    ).joinToString(" · ").ifEmpty { tr("Aucune photo choisie", "No photos chosen") }
     SettingsPage.CHANGE -> listOfNotNull(
-        if (s.intervalEnabled) "Toutes les ${intervalLabel(s.intervalMinutes)}" else null,
-        if (s.hoursEnabled && s.hours.isNotEmpty()) "${s.hours.size} heure" + (if (s.hours.size > 1) "s" else "") else null,
-        if (s.screenOff) "Mise en veille" else null,
+        if (s.intervalEnabled) tr("Toutes les ", "Every ") + intervalLabel(s.intervalMinutes) else null,
+        if (s.hoursEnabled && s.hours.isNotEmpty()) plural(s.hours.size, tr("heure", "time")) else null,
+        if (s.screenOff) tr("Mise en veille", "Screen off") else null,
         if (s.doubleTap) "Double-tap" else null,
-        if (s.shake) "Secousse" else null,
-    ).joinToString(" · ").ifEmpty { "Manuel uniquement" }
+        if (s.shake) tr("Secousse", "Shake") else null,
+    ).joinToString(" · ").ifEmpty { tr("Manuel uniquement", "Manual only") }
     SettingsPage.DISPLAY -> listOfNotNull(
         s.fillMode.label,
-        if (s.shuffle) "Aléatoire" else "Dans l'ordre",
-        if (s.transition) "Fondu" else null,
+        if (s.shuffle) tr("Aléatoire", "Shuffle") else tr("Dans l'ordre", "In order"),
+        if (s.transition) tr("Fondu", "Fade") else null,
     ).joinToString(" · ")
 }
 
@@ -215,11 +218,11 @@ private fun PhotosPage(s: Settings, change: (() -> Unit) -> Unit) {
     }
     val albums = remember(hasMedia) { if (hasMedia) PhotoSource.listAlbums(ctx) else emptyList() }
 
-    SectionTitle("Mes albums")
+    SectionTitle(tr("Mes albums", "My albums"))
     SettingRow(
-        "Photos choisies",
-        if (s.photos.isEmpty()) "Aucune" else "${s.photos.size} photo" + if (s.photos.size > 1) "s" else "",
-        "Choisir",
+        tr("Photos choisies", "Chosen photos"),
+        if (s.photos.isEmpty()) tr("Aucune", "None") else plural(s.photos.size, "photo"),
+        tr("Choisir", "Choose"),
     ) {
         pickPhotos.launch(
             Intent(MediaStore.ACTION_PICK_IMAGES).setType("image/*")
@@ -227,7 +230,12 @@ private fun PhotosPage(s: Settings, change: (() -> Unit) -> Unit) {
                 .putExtra(MediaStore.EXTRA_PICK_IMAGES_LAUNCH_TAB, MediaStore.PICK_IMAGES_TAB_ALBUMS)
         )
     }
-    HintText("Ouvre un album Google Photos et sélectionne jusqu'à ${MediaStore.getPickImagesMaxLimit()} photos à la fois ; recommence pour en ajouter.")
+    HintText(
+        tr(
+            "Ouvre un album Google Photos et sélectionne jusqu'à ${MediaStore.getPickImagesMaxLimit()} photos à la fois ; recommence pour en ajouter.",
+            "Open a Google Photos album and select up to ${MediaStore.getPickImagesMaxLimit()} photos at a time; repeat to add more.",
+        )
+    )
     if (s.photos.isNotEmpty()) {
         TextButton(onClick = {
             s.photos.forEach {
@@ -236,12 +244,12 @@ private fun PhotosPage(s: Settings, change: (() -> Unit) -> Unit) {
                 }
             }
             change { s.photos = emptySet() }
-        }) { Text("Tout retirer") }
+        }) { Text(tr("Tout retirer", "Remove all")) }
     }
 
-    SectionTitle("Dossiers")
+    SectionTitle(tr("Dossiers", "Folders"))
     s.folders.forEach { f ->
-        SettingRow(folderName(f), "Avec les sous-dossiers", "Retirer", tonal = false) {
+        SettingRow(folderName(f), tr("Avec les sous-dossiers", "Including subfolders"), tr("Retirer", "Remove"), tonal = false) {
             runCatching {
                 ctx.contentResolver.releasePersistableUriPermission(Uri.parse(f), Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -249,19 +257,19 @@ private fun PhotosPage(s: Settings, change: (() -> Unit) -> Unit) {
         }
     }
     FilledTonalButton(onClick = { pickFolder.launch(null) }, modifier = Modifier.padding(vertical = 8.dp)) {
-        Text("Ajouter un dossier")
+        Text(tr("Ajouter un dossier", "Add a folder"))
     }
 
-    SectionTitle("Dossiers de la galerie")
+    SectionTitle(tr("Dossiers de la galerie", "Gallery folders"))
     if (!hasMedia) {
-        SettingRow("Accès à la galerie", "Non autorisé", "Autoriser") {
+        SettingRow(tr("Accès à la galerie", "Gallery access"), tr("Non autorisé", "Not allowed"), tr("Autoriser", "Allow")) {
             askMedia.launch(arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED))
         }
     } else if (albums.isEmpty()) {
-        HintText("Aucun dossier trouvé")
+        HintText(tr("Aucun dossier trouvé", "No folders found"))
     }
     albums.forEach { a ->
-        SwitchRow(a.name, "${a.count} photo" + if (a.count > 1) "s" else "", a.id in s.albums) { on ->
+        SwitchRow(a.name, plural(a.count, "photo"), a.id in s.albums) { on ->
             change { s.albums = if (on) s.albums + a.id else s.albums - a.id }
         }
     }
@@ -270,7 +278,7 @@ private fun PhotosPage(s: Settings, change: (() -> Unit) -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChangePage(s: Settings, change: (() -> Unit) -> Unit) {
-    SwitchRow("À intervalle régulier", if (s.intervalEnabled) "Toutes les ${intervalLabel(s.intervalMinutes)}" else null, s.intervalEnabled) {
+    SwitchRow(tr("À intervalle régulier", "At regular intervals"), if (s.intervalEnabled) tr("Toutes les ", "Every ") + intervalLabel(s.intervalMinutes) else null, s.intervalEnabled) {
         change { s.intervalEnabled = it }
     }
     if (s.intervalEnabled) {
@@ -281,8 +289,8 @@ private fun ChangePage(s: Settings, change: (() -> Unit) -> Unit) {
         }
     }
     SwitchRow(
-        "À heures fixes",
-        if (s.hoursEnabled) s.hours.sorted().joinToString(", ") { "${it}h" }.ifEmpty { "Aucune heure" } else null,
+        tr("À heures fixes", "At set times"),
+        if (s.hoursEnabled) s.hours.sorted().joinToString(", ") { hourLabel(it) }.ifEmpty { tr("Aucune heure", "No times") } else null,
         s.hoursEnabled,
     ) { change { s.hoursEnabled = it } }
     if (s.hoursEnabled) {
@@ -291,28 +299,30 @@ private fun ChangePage(s: Settings, change: (() -> Unit) -> Unit) {
                 FilterChip(
                     selected = h in s.hours,
                     onClick = { change { s.hours = if (h in s.hours) s.hours - h else s.hours + h } },
-                    label = { Text("${h}h") },
+                    label = { Text(hourLabel(h)) },
                 )
             }
         }
     }
-    SwitchRow("À chaque mise en veille", "La nouvelle photo est prête au réveil", s.screenOff) { change { s.screenOff = it } }
-    SwitchRow("Double-tap sur le bureau", null, s.doubleTap) { change { s.doubleTap = it } }
-    SwitchRow("Secouer le téléphone", null, s.shake) { change { s.shake = it } }
-    HintText("Ajoute aussi la tuile « Fond suivant » dans les réglages rapides.")
+    SwitchRow(tr("À chaque mise en veille", "Every time the screen turns off"), tr("La nouvelle photo est prête au réveil", "The new photo is ready when you wake it"), s.screenOff) { change { s.screenOff = it } }
+    SwitchRow(tr("Double-tap sur le bureau", "Double-tap the home screen"), null, s.doubleTap) { change { s.doubleTap = it } }
+    SwitchRow(tr("Secouer le téléphone", "Shake the phone"), null, s.shake) { change { s.shake = it } }
+    HintText(tr("Ajoute aussi la tuile « Fond suivant » dans les réglages rapides.", "You can also add the “Next wallpaper” tile to Quick Settings."))
 }
 
 @Composable
 private fun DisplayPage(s: Settings, change: (() -> Unit) -> Unit) {
-    SwitchRow("Ordre aléatoire", null, s.shuffle) { change { s.shuffle = it } }
-    SwitchRow("Transition en fondu", null, s.transition) { change { s.transition = it } }
-    SectionTitle("Cadrage")
+    SwitchRow(tr("Ordre aléatoire", "Shuffle"), null, s.shuffle) { change { s.shuffle = it } }
+    SwitchRow(tr("Transition en fondu", "Fade transition"), null, s.transition) { change { s.transition = it } }
+    SectionTitle(tr("Cadrage", "Framing"))
     Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FillMode.entries.forEach { m ->
             FilterChip(selected = s.fillMode == m, onClick = { change { s.fillMode = m } }, label = { Text(m.label) })
         }
     }
 }
+
+private fun hourLabel(h: Int) = tr("${h}h", if (h == 0) "12am" else if (h < 12) "${h}am" else if (h == 12) "12pm" else "${h - 12}pm")
 
 private fun folderName(uri: String) =
     runCatching { DocumentsContract.getTreeDocumentId(Uri.parse(uri)).substringAfter(':').ifEmpty { "/" } }

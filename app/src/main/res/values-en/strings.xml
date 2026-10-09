@@ -1,0 +1,4 @@
+<resources>
+    <string name="wallpaper_description">Cycles through your photos as wallpaper</string>
+    <string name="tile_label">Next wallpaper</string>
+</resources>
