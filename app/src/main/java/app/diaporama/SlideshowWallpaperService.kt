@@ -61,27 +61,29 @@ class SlideshowWallpaperService : WallpaperService() {
 
         private val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                when (intent.action) {
-                    Intent.ACTION_USER_PRESENT -> if (settings.unlock) next()
-                    Settings.ACTION_NEXT -> next()
-                }
+                next()
+            }
+        }
+
+        private val unlockReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (settings.unlock) next()
             }
         }
 
         override fun onCreate(surfaceHolder: SurfaceHolder) {
             super.onCreate(surfaceHolder)
             settings.prefs.registerOnSharedPreferenceChangeListener(this)
-            val filter = IntentFilter().apply {
-                addAction(Intent.ACTION_USER_PRESENT)
-                addAction(Settings.ACTION_NEXT)
-            }
-            registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED)
+            registerReceiver(receiver, IntentFilter(Settings.ACTION_NEXT), RECEIVER_NOT_EXPORTED)
+            // Diffusion système protégée : le receveur doit être exporté pour la recevoir
+            registerReceiver(unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), RECEIVER_EXPORTED)
             reloadPhotos()
         }
 
         override fun onDestroy() {
             settings.prefs.unregisterOnSharedPreferenceChangeListener(this)
             unregisterReceiver(receiver)
+            unregisterReceiver(unlockReceiver)
             sensors.unregisterListener(this)
             main.removeCallbacksAndMessages(null)
             loaderThread.quitSafely()

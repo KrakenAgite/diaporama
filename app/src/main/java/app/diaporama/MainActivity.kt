@@ -122,7 +122,7 @@ fun SettingsScreen(s: Settings) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = {
                         pickPhotos.launch(
-                            Intent(MediaStore.ACTION_PICK_IMAGES)
+                            Intent(MediaStore.ACTION_PICK_IMAGES).setType("image/*")
                                 .putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, MediaStore.getPickImagesMaxLimit())
                                 .putExtra(MediaStore.EXTRA_PICK_IMAGES_LAUNCH_TAB, MediaStore.PICK_IMAGES_TAB_ALBUMS)
                         )
