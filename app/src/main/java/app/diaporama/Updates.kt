@@ -33,10 +33,6 @@ data class Release(val version: String, val url: String, val apkUrl: String? = n
 object UpdateCheck {
     const val LATEST_URL = "https://api.github.com/repos/KrakenAgite/diaporama/releases/latest"
     const val RELEASES_PAGE = "https://github.com/KrakenAgite/diaporama/releases"
-    private const val INTERVAL_MS = 12 * 3_600_000L
-
-    fun isDue(lastCheck: Long, now: Long): Boolean = now - lastCheck >= INTERVAL_MS
-
     fun parse(json: String): Release? = runCatching {
         val root = JSONObject(json)
         if (root.optBoolean("draft") || root.optBoolean("prerelease")) return null
@@ -79,8 +75,8 @@ object UpdateCheck {
 }
 
 /**
- * Regarde sur GitHub s'il existe une version plus récente (au plus toutes les 12 h, à l'ouverture de l'app ;
- * jamais en arrière-plan). Si l'installation automatique est permise, télécharge l'APK, vérifie son empreinte
+ * Regarde sur GitHub s'il existe une version plus récente, à chaque ouverture de l'app et juste après
+ * une mise à jour (jamais en arrière-plan sinon). Si l'installation automatique est permise, télécharge l'APK, vérifie son empreinte
  * SHA-256 publiée et le confie à l'installeur d'Android (qui vérifie aussi la signature) ; sinon une notification,
  * une seule fois par version.
  */
@@ -102,9 +98,7 @@ class Updater(context: Context) {
 
     /** [force] : bouton « Vérifier maintenant ». Renvoie la release plus récente, s'il y en a une. */
     suspend fun check(force: Boolean = false): Release? = withContext(Dispatchers.IO) {
-        if (!force && (!settings.updatesEnabled || !UpdateCheck.isDue(settings.updatesLastCheck, System.currentTimeMillis()))) {
-            return@withContext null
-        }
+        if (!force && !settings.updatesEnabled) return@withContext null
         val release = fetchLatest() ?: return@withContext null
         val newer = release.takeIf { UpdateCheck.isNewer(it.version, installed) }
         settings.updatesLastCheck = System.currentTimeMillis()
@@ -219,6 +213,17 @@ class Updater(context: Context) {
                     .setAutoCancel(true)
                     .build(),
             )
+        }
+    }
+}
+
+/** Juste après une mise à jour de Diaporama (par l'app ou à la main) : y en a-t-il déjà une autre ? */
+class UpdatedReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+        val pending = goAsync()
+        Updater.scope.launch {
+            try { Updater(context).check() } finally { pending.finish() }
         }
     }
 }

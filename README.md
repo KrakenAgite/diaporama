@@ -23,7 +23,7 @@ Puis, dans l'app :
 | **Changement** | Toutes les 1 min à 1 jour, à heures fixes, à chaque mise en veille (la nouvelle photo est prête au réveil), double-tap sur le bureau, secousse |
 | **Manuel** | Bouton « Photo suivante » dans l'app, tuile « Fond suivant » des réglages rapides |
 | **Affichage** | Ordre aléatoire, fondu, cadrage Remplir / Ajuster / Centrer, et pour chaque photo sa propre taille, rotation et position (pincer, tourner à deux doigts, glisser, quarts de tour) |
-| **Mises à jour** | Vérification sur GitHub (au plus toutes les 12 h, à l'ouverture), téléchargement, contrôle de l'empreinte SHA-256 et installation automatique ; sinon une notification |
+| **Mises à jour** | Vérification sur GitHub (à chaque ouverture de l'app et juste après une mise à jour), téléchargement, contrôle de l'empreinte SHA-256 et installation automatique ; sinon une notification |
 
 L'intervalle et les heures fixes ne tournent que quand le fond d'écran est visible, pour économiser la batterie :
 un changement dû pendant que l'écran était éteint se fait au retour sur le bureau.

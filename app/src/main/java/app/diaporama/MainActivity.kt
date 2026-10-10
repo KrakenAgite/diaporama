@@ -69,7 +69,11 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         isActive = WallpaperManager.getInstance(this).wallpaperInfo?.packageName == packageName
         resumes++
-        // Au plus toutes les 12 h, seulement si l'option est active
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // À chaque ouverture, si l'option est active
         Updater.scope.launch { Updater(this@MainActivity).check() }
     }
 }
