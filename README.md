@@ -23,6 +23,7 @@ Puis, dans l'app :
 | **Changement** | Toutes les 1 min à 1 jour, à heures fixes, à chaque mise en veille (la nouvelle photo est prête au réveil), double-tap sur le bureau, secousse |
 | **Manuel** | Bouton « Photo suivante » dans l'app, tuile « Fond suivant » des réglages rapides |
 | **Affichage** | Ordre aléatoire, fondu, cadrage Remplir / Ajuster / Centrer, et pour chaque photo sa propre taille, rotation et position (pincer, tourner à deux doigts, glisser, quarts de tour) |
+| **Mises à jour** | Vérification sur GitHub (au plus toutes les 12 h, à l'ouverture), téléchargement, contrôle de l'empreinte SHA-256 et installation automatique ; sinon une notification |
 
 L'intervalle et les heures fixes ne tournent que quand le fond d'écran est visible, pour économiser la batterie :
 un changement dû pendant que l'écran était éteint se fait au retour sur le bureau.
@@ -62,6 +63,7 @@ la mise à jour et il faut désinstaller l'app, ce qui efface ses réglages.
 | `MainActivity.kt` | Écran de réglages (Compose, Material You) |
 | `PhotoEditor.kt` | Écran « Photo par photo » : aperçu et gestes pour retoucher chaque photo |
 | `PhotoTransform.kt` | Taille, rotation et position propres à une photo, et la matrice de dessin commune |
+| `Updates.kt` | Mises à jour depuis les releases GitHub |
 | `PhotoSource.kt` | Liste des photos des dossiers, albums et sélections |
 | `Settings.kt` | Réglages partagés (SharedPreferences) |
 | `NextTileService.kt` | Tuile « Fond suivant » |

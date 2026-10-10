@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.Tune
@@ -41,10 +42,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     /** Relu à chaque retour dans l'app (après le sélecteur de fond d'écran par exemple). */
     private var isActive by mutableStateOf(false)
+    /** Incrémenté à chaque retour : relit les autorisations (installation, notifications). */
+    private var resumes by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +59,7 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = scheme) {
                 // Pas de Surface : sans cela, textes et icônes seraient noirs par défaut
                 CompositionLocalProvider(LocalContentColor provides scheme.onSurface) {
-                    SettingsScreen(Settings(ctx), isActive)
+                    key(resumes) { SettingsScreen(Settings(ctx), isActive) }
                 }
             }
         }
@@ -64,6 +68,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         isActive = WallpaperManager.getInstance(this).wallpaperInfo?.packageName == packageName
+        resumes++
+        // Au plus toutes les 12 h, seulement si l'option est active
+        Updater.scope.launch { Updater(this@MainActivity).check() }
     }
 }
 
@@ -72,6 +79,7 @@ enum class SettingsPage(val icon: ImageVector, private val fr: String, private v
     PHOTOS(Icons.Outlined.PhotoLibrary, "Photos", "Photos"),
     CHANGE(Icons.Outlined.Autorenew, "Changement", "Changing"),
     DISPLAY(Icons.Outlined.Tune, "Affichage", "Display"),
+    ABOUT(Icons.Outlined.Info, "À propos", "About"),
     ;
 
     val label: String get() = tr(fr, en)
@@ -101,11 +109,20 @@ fun SettingsScreen(s: Settings, isActive: Boolean) {
     val ctx = LocalContext.current
     var page by remember { mutableStateOf<SettingsPage?>(null) }
     var editing by remember { mutableStateOf(false) }
+    val installed = remember { Updater(ctx).installed }
     // Compteur incrémenté à chaque modification pour relire les réglages
     var rev by remember { mutableIntStateOf(0) }
     val change: (() -> Unit) -> Unit = { it(); rev++ }
     BackHandler(enabled = page != null) { page = null }
     BackHandler(enabled = editing) { editing = false }
+    // Résultat d'une vérification faite en arrière-plan : on relit l'écran
+    DisposableEffect(s) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
+            if (k?.startsWith(Settings.K_UPDATES) == true) rev++
+        }
+        s.prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { s.prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     if (editing) {
         PhotoEditor(s) { editing = false }
@@ -149,7 +166,7 @@ fun SettingsScreen(s: Settings, isActive: Boolean) {
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsPage.entries.forEach { p ->
-                        MenuRow(p.icon, p.label, summary(p, s)) { page = p }
+                        MenuRow(p.icon, p.label, summary(p, s, installed)) { page = p }
                     }
                     Spacer(Modifier.height(4.dp))
                     MenuRow(Icons.Outlined.SkipNext, tr("Photo suivante", "Next photo"), null, chevron = false) { Settings.requestNext(ctx) }
@@ -169,6 +186,7 @@ fun SettingsScreen(s: Settings, isActive: Boolean) {
                         SettingsPage.PHOTOS -> PhotosPage(s, change)
                         SettingsPage.CHANGE -> ChangePage(s, change)
                         SettingsPage.DISPLAY -> DisplayPage(s, change) { editing = true }
+                        SettingsPage.ABOUT -> AboutPage(s, change)
                     }
                 }
             }
@@ -177,7 +195,7 @@ fun SettingsScreen(s: Settings, isActive: Boolean) {
 }
 
 /** L'état actuel de chaque sous-menu, en quelques mots. */
-private fun summary(page: SettingsPage, s: Settings): String = when (page) {
+private fun summary(page: SettingsPage, s: Settings, installed: String): String = when (page) {
     SettingsPage.PHOTOS -> listOfNotNull(
         s.photos.size.takeIf { it > 0 }?.let { plural(it, "photo") },
         s.folders.size.takeIf { it > 0 }?.let { plural(it, tr("dossier", "folder")) },
@@ -190,6 +208,8 @@ private fun summary(page: SettingsPage, s: Settings): String = when (page) {
         if (s.doubleTap) "Double-tap" else null,
         if (s.shake) tr("Secousse", "Shake") else null,
     ).joinToString(" · ").ifEmpty { tr("Manuel uniquement", "Manual only") }
+    SettingsPage.ABOUT -> s.updatesLatest?.let { tr("$it disponible", "$it available") }
+        ?: (tr("Version ", "Version ") + installed)
     SettingsPage.DISPLAY -> listOfNotNull(
         s.fillMode.label,
         if (s.shuffle) tr("Aléatoire", "Shuffle") else tr("Dans l'ordre", "In order"),
@@ -333,6 +353,89 @@ private fun DisplayPage(s: Settings, change: (() -> Unit) -> Unit, onEdit: () ->
         tr("Ajuster", "Adjust"),
         onAction = onEdit,
     )
+}
+
+@Composable
+private fun AboutPage(s: Settings, change: (() -> Unit) -> Unit) {
+    val ctx = LocalContext.current
+    val updater = remember { Updater(ctx) }
+    val scope = rememberCoroutineScope()
+    var checking by remember { mutableStateOf(false) }
+    var installing by remember { mutableStateOf(false) }
+    val canInstall = updater.canInstall()
+    val canNotify = updater.canNotify()
+    val askNotify = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { change {} }
+    fun toast(text: String) = android.widget.Toast.makeText(ctx, text, android.widget.Toast.LENGTH_SHORT).show()
+    fun allowInstalls() = ctx.startActivity(updater.unknownSourcesIntent())
+
+    val latest = s.updatesLatest
+    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(tr("Version", "Version"), style = MaterialTheme.typography.titleMedium)
+            Text(
+                updater.installed + (latest?.let { " · " + tr("$it disponible", "$it available") } ?: ""),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (latest != null) {
+            FilledTonalButton(enabled = !installing, onClick = {
+                if (!canInstall) { allowInstalls(); return@FilledTonalButton }
+                installing = true
+                scope.launch {
+                    if (!updater.installNow()) toast(tr("Mise à jour impossible", "Update failed"))
+                    installing = false
+                }
+            }) { Text(if (installing) tr("Installation…", "Installing…") else tr("Installer", "Install")) }
+        }
+    }
+    SwitchRow(
+        tr("Vérifier les mises à jour", "Check for updates"),
+        s.updatesLastCheck.takeIf { it > 0 }?.let {
+            tr("Dernière vérification ", "Last checked ") +
+                android.text.format.DateUtils.getRelativeTimeSpanString(it, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS)
+        } ?: tr("Jamais vérifié", "Never checked"),
+        s.updatesEnabled,
+    ) { on ->
+        change { s.updatesEnabled = on }
+        if (on && !canNotify) askNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    SwitchRow(
+        tr("Installer automatiquement", "Install automatically"),
+        if (canInstall) tr("Dès qu'une version sort", "As soon as a version is out") else tr("Autorisation d'installer requise", "Install permission needed"),
+        s.autoInstall,
+    ) { on ->
+        change { s.autoInstall = on }
+        if (on && !canInstall) allowInstalls()
+    }
+    if (s.autoInstall && !canInstall) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { HintText(tr("Diaporama n'a pas le droit d'installer.", "Diaporama can't install apps yet.")) }
+            TextButton(onClick = ::allowInstalls) { Text(tr("Autoriser", "Allow")) }
+        }
+    }
+    FilledTonalButton(
+        enabled = !checking,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        onClick = {
+            checking = true
+            scope.launch {
+                val newer = updater.check(force = true)
+                checking = false
+                change {}
+                toast(newer?.let { tr("Diaporama ${it.version} est disponible", "Diaporama ${it.version} is available") } ?: tr("Diaporama est à jour", "Diaporama is up to date"))
+            }
+        },
+    ) { Text(if (checking) tr("Vérification…", "Checking…") else tr("Vérifier maintenant", "Check now")) }
+    if (s.updatesEnabled && !canNotify) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { HintText(tr("Notifications bloquées pour Diaporama.", "Notifications are blocked for Diaporama.")) }
+            TextButton(onClick = { askNotify.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text(tr("Autoriser", "Allow")) }
+        }
+    }
+    SettingRow(tr("Code source", "Source code"), "github.com/KrakenAgite/diaporama", tr("Ouvrir", "Open"), tonal = false) {
+        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(UpdateCheck.RELEASES_PAGE)))
+    }
 }
 
 private fun hourLabel(h: Int) = tr("${h}h", if (h == 0) "12am" else if (h < 12) "${h}am" else if (h == 12) "12pm" else "${h - 12}pm")

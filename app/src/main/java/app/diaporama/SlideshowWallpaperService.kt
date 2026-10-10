@@ -125,7 +125,8 @@ class SlideshowWallpaperService : WallpaperService() {
                 Settings.K_FOLDERS, Settings.K_ALBUMS, Settings.K_PHOTOS, Settings.K_SHUFFLE -> reloadPhotos()
                 Settings.K_FILL -> draw()
                 Settings.K_SHAKE -> updateShakeListener()
-                else -> if (key?.startsWith(Settings.K_TRANSFORM) == true) Unit else if (visible) { main.removeCallbacks(tick); scheduleTick() }
+                else -> if (key?.startsWith(Settings.K_TRANSFORM) == true || key?.startsWith(Settings.K_UPDATES) == true) Unit
+                    else if (visible) { main.removeCallbacks(tick); scheduleTick() }
             }
         }
 

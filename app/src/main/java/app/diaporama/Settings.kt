@@ -49,6 +49,21 @@ class Settings(context: Context) {
         get() = FillMode.valueOf(prefs.getString(K_FILL, FillMode.FILL.name)!!)
         set(v) = prefs.edit { putString(K_FILL, v.name) }
 
+    // Mises à jour (préfixe « updates_ » : le fond d'écran les ignore)
+    var updatesEnabled by bool(K_UPDATES + "enabled", true)
+    var autoInstall by bool(K_UPDATES + "auto_install", true)
+    var updatesLastCheck: Long
+        get() = prefs.getLong(K_UPDATES + "last_check", 0L)
+        set(v) = prefs.edit { putLong(K_UPDATES + "last_check", v) }
+    /** Version plus récente trouvée à la dernière vérification, null si à jour. */
+    var updatesLatest: String?
+        get() = prefs.getString(K_UPDATES + "latest", null)
+        set(v) = prefs.edit { putString(K_UPDATES + "latest", v) }
+    /** Dernière version signalée par une notification, pour ne pas la répéter. */
+    var updatesNotified: String?
+        get() = prefs.getString(K_UPDATES + "notified", null)
+        set(v) = prefs.edit { putString(K_UPDATES + "notified", v) }
+
     /** Taille, rotation et position propres à une photo (rien d'enregistré si elle n'est pas retouchée). */
     fun transform(uri: String): PhotoTransform =
         prefs.getString(K_TRANSFORM + uri, null)?.let(PhotoTransform::decode) ?: PhotoTransform()
@@ -85,6 +100,7 @@ class Settings(context: Context) {
         const val K_FILL = "fill"
         /** Préfixe des réglages par photo, suivi de l'URI de la photo. */
         const val K_TRANSFORM = "transform:"
+        const val K_UPDATES = "updates_"
 
         /** Diffusion interne demandant au fond d'écran de passer à la photo suivante. */
         const val ACTION_NEXT = "app.diaporama.NEXT"
