@@ -22,7 +22,7 @@ Puis, dans l'app :
 | **Sources** | Photos d'albums Google Photos (sélecteur d'Android, 100 à la fois, à répéter), dossiers avec leurs sous-dossiers, dossiers de la galerie (Camera, Screenshots…) |
 | **Changement** | Toutes les 1 min à 1 jour, à heures fixes, à chaque mise en veille (la nouvelle photo est prête au réveil), double-tap sur le bureau, secousse |
 | **Manuel** | Bouton « Photo suivante » dans l'app, tuile « Fond suivant » des réglages rapides |
-| **Affichage** | Ordre aléatoire, fondu, cadrage Remplir / Ajuster / Centrer |
+| **Affichage** | Ordre aléatoire, fondu, cadrage Remplir / Ajuster / Centrer, et pour chaque photo sa propre taille, rotation et position (pincer, tourner à deux doigts, glisser, quarts de tour) |
 
 L'intervalle et les heures fixes ne tournent que quand le fond d'écran est visible, pour économiser la batterie :
 un changement dû pendant que l'écran était éteint se fait au retour sur le bureau.
@@ -60,6 +60,8 @@ la mise à jour et il faut désinstaller l'app, ce qui efface ses réglages.
 |---|---|
 | `SlideshowWallpaperService.kt` | Le fond d'écran : chargement des photos, déclencheurs, dessin et fondu |
 | `MainActivity.kt` | Écran de réglages (Compose, Material You) |
+| `PhotoEditor.kt` | Écran « Photo par photo » : aperçu et gestes pour retoucher chaque photo |
+| `PhotoTransform.kt` | Taille, rotation et position propres à une photo, et la matrice de dessin commune |
 | `PhotoSource.kt` | Liste des photos des dossiers, albums et sélections |
 | `Settings.kt` | Réglages partagés (SharedPreferences) |
 | `NextTileService.kt` | Tuile « Fond suivant » |

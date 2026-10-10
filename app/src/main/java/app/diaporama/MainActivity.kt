@@ -100,10 +100,17 @@ private fun openWallpaperPicker(ctx: Context) = ctx.startActivity(
 fun SettingsScreen(s: Settings, isActive: Boolean) {
     val ctx = LocalContext.current
     var page by remember { mutableStateOf<SettingsPage?>(null) }
+    var editing by remember { mutableStateOf(false) }
     // Compteur incrémenté à chaque modification pour relire les réglages
     var rev by remember { mutableIntStateOf(0) }
     val change: (() -> Unit) -> Unit = { it(); rev++ }
     BackHandler(enabled = page != null) { page = null }
+    BackHandler(enabled = editing) { editing = false }
+
+    if (editing) {
+        PhotoEditor(s) { editing = false }
+        return
+    }
 
     Column(
         Modifier
@@ -161,7 +168,7 @@ fun SettingsScreen(s: Settings, isActive: Boolean) {
                     when (current) {
                         SettingsPage.PHOTOS -> PhotosPage(s, change)
                         SettingsPage.CHANGE -> ChangePage(s, change)
-                        SettingsPage.DISPLAY -> DisplayPage(s, change)
+                        SettingsPage.DISPLAY -> DisplayPage(s, change) { editing = true }
                     }
                 }
             }
@@ -311,7 +318,7 @@ private fun ChangePage(s: Settings, change: (() -> Unit) -> Unit) {
 }
 
 @Composable
-private fun DisplayPage(s: Settings, change: (() -> Unit) -> Unit) {
+private fun DisplayPage(s: Settings, change: (() -> Unit) -> Unit, onEdit: () -> Unit) {
     SwitchRow(tr("Ordre aléatoire", "Shuffle"), null, s.shuffle) { change { s.shuffle = it } }
     SwitchRow(tr("Transition en fondu", "Fade transition"), null, s.transition) { change { s.transition = it } }
     SectionTitle(tr("Cadrage", "Framing"))
@@ -320,6 +327,12 @@ private fun DisplayPage(s: Settings, change: (() -> Unit) -> Unit) {
             FilterChip(selected = s.fillMode == m, onClick = { change { s.fillMode = m } }, label = { Text(m.label) })
         }
     }
+    SettingRow(
+        tr("Photo par photo", "Photo by photo"),
+        tr("Taille, rotation et position de chaque photo", "Size, rotation and position of each photo"),
+        tr("Ajuster", "Adjust"),
+        onAction = onEdit,
+    )
 }
 
 private fun hourLabel(h: Int) = tr("${h}h", if (h == 0) "12am" else if (h < 12) "${h}am" else if (h == 12) "12pm" else "${h - 12}pm")

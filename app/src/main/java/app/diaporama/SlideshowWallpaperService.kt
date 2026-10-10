@@ -10,7 +10,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.graphics.Paint
-import android.graphics.RectF
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -47,6 +46,9 @@ class SlideshowWallpaperService : WallpaperService() {
 
         private var current: Bitmap? = null
         private var previous: Bitmap? = null
+        /** URI des photos affichées, pour retrouver leur réglage propre. */
+        private var currentUri: String? = null
+        private var previousUri: String? = null
         private var fadeStart = 0L
         private var width = 0
         private var height = 0
@@ -58,6 +60,8 @@ class SlideshowWallpaperService : WallpaperService() {
         private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
         private val tick = Runnable { onTick() }
         private val frame = Runnable { draw() }
+        /** Redécodage après une retouche, une fois les gestes finis : un zoom peut demander plus de définition. */
+        private val redecode = Runnable { loadCurrent(animate = false) }
 
         private val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -113,10 +117,15 @@ class SlideshowWallpaperService : WallpaperService() {
         override fun onSharedPreferenceChanged(prefs: SharedPreferences, key: String?) {
             when (key) {
                 K_CURRENT, K_LAST_CHANGE -> Unit
+                Settings.K_TRANSFORM + currentUri -> {
+                    draw()
+                    main.removeCallbacks(redecode)
+                    main.postDelayed(redecode, 500)
+                }
                 Settings.K_FOLDERS, Settings.K_ALBUMS, Settings.K_PHOTOS, Settings.K_SHUFFLE -> reloadPhotos()
                 Settings.K_FILL -> draw()
                 Settings.K_SHAKE -> updateShakeListener()
-                else -> if (visible) { main.removeCallbacks(tick); scheduleTick() }
+                else -> if (key?.startsWith(Settings.K_TRANSFORM) == true) Unit else if (visible) { main.removeCallbacks(tick); scheduleTick() }
             }
         }
 
@@ -215,11 +224,11 @@ class SlideshowWallpaperService : WallpaperService() {
         }
 
         private fun loadCurrent(animate: Boolean) {
-            if (photos.isEmpty() || width == 0) { current = null; draw(); return }
+            if (photos.isEmpty() || width == 0) { current = null; currentUri = null; draw(); return }
             val uri = photos[order[pos]]
             val w = width; val h = height
             loader.post {
-                val bmp = runCatching { decode(uri, w, h) }.getOrNull()
+                val bmp = runCatching { decode(uri, w, h, settings.transform(uri.toString())) }.getOrNull()
                 main.post {
                     if (bmp == null) {
                         // Photo illisible (supprimée…) : on passe à la suivante
@@ -228,18 +237,27 @@ class SlideshowWallpaperService : WallpaperService() {
                     }
                     settings.prefs.edit { putString(K_CURRENT, uri.toString()) }
                     previous = if (animate) current else null
+                    previousUri = if (animate) currentUri else null
                     current = bmp
+                    currentUri = uri.toString()
                     fadeStart = SystemClock.uptimeMillis()
                     draw()
                 }
             }
         }
 
-        private fun decode(uri: Uri, w: Int, h: Int): Bitmap {
+        /** Décode juste assez grand pour l'écran, en tenant compte du zoom propre à la photo. */
+        private fun decode(uri: Uri, w: Int, h: Int, t: PhotoTransform): Bitmap {
             val src = ImageDecoder.createSource(contentResolver, uri)
+            val zoom = t.scale.coerceIn(1f, 4f)
             return ImageDecoder.decodeBitmap(src) { dec, info, _ ->
                 dec.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                val s = min(info.size.width / w, info.size.height / h)
+                val iw = info.size.width; val ih = info.size.height
+                // Quart de tour : la largeur de la photo couvre la hauteur de l'écran
+                val (sw, sh) = if (t.quarterOdd) h to w else w to h
+                var s = max(1, (min(iw / sw.toFloat(), ih / sh.toFloat()) / zoom).toInt())
+                // Plafond mémoire : un dessin trop grand ferait planter le canevas
+                while (iw.toLong() / s * (ih / s) > MAX_PIXELS) s++
                 if (s > 1) dec.setTargetSampleSize(s)
             }
         }
@@ -256,34 +274,29 @@ class SlideshowWallpaperService : WallpaperService() {
                 val prev = previous
                 if (prev != null && t < 1f) {
                     paint.alpha = 255
-                    drawBitmap(canvas, prev)
+                    drawBitmap(canvas, prev, previousUri)
                     paint.alpha = (t * 255).toInt()
                 } else {
                     previous = null
                     paint.alpha = 255
                 }
-                current?.let { drawBitmap(canvas, it) }
+                current?.let { drawBitmap(canvas, it, currentUri) }
                 if (previous != null) main.postDelayed(frame, 16)
             } finally {
                 holder.unlockCanvasAndPost(canvas)
             }
         }
 
-        private fun drawBitmap(canvas: Canvas, bmp: Bitmap) {
-            val bw = bmp.width.toFloat(); val bh = bmp.height.toFloat()
-            val scale = when (settings.fillMode) {
-                FillMode.FILL -> max(width / bw, height / bh)
-                FillMode.FIT -> min(width / bw, height / bh)
-                FillMode.CENTER -> min(1f, min(width / bw, height / bh))
-            }
-            val dw = bw * scale; val dh = bh * scale
-            val left = (width - dw) / 2; val top = (height - dh) / 2
-            canvas.drawBitmap(bmp, null, RectF(left, top, left + dw, top + dh), paint)
+        private fun drawBitmap(canvas: Canvas, bmp: Bitmap, uri: String?) {
+            val t = uri?.let(settings::transform) ?: PhotoTransform()
+            val m = t.matrix(bmp.width.toFloat(), bmp.height.toFloat(), width.toFloat(), height.toFloat(), settings.fillMode)
+            canvas.drawBitmap(bmp, m, paint)
         }
     }
 
     companion object {
         private const val FADE_MS = 700L
+        private const val MAX_PIXELS = 16_000_000L
         const val K_CURRENT = "current"
         const val K_LAST_CHANGE = "last_change"
     }

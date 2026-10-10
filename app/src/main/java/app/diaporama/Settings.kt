@@ -49,6 +49,14 @@ class Settings(context: Context) {
         get() = FillMode.valueOf(prefs.getString(K_FILL, FillMode.FILL.name)!!)
         set(v) = prefs.edit { putString(K_FILL, v.name) }
 
+    /** Taille, rotation et position propres à une photo (rien d'enregistré si elle n'est pas retouchée). */
+    fun transform(uri: String): PhotoTransform =
+        prefs.getString(K_TRANSFORM + uri, null)?.let(PhotoTransform::decode) ?: PhotoTransform()
+
+    fun setTransform(uri: String, t: PhotoTransform) = prefs.edit {
+        if (t.isIdentity) remove(K_TRANSFORM + uri) else putString(K_TRANSFORM + uri, t.encode())
+    }
+
     private fun bool(key: String, def: Boolean) = object : kotlin.properties.ReadWriteProperty<Any?, Boolean> {
         override fun getValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>) = prefs.getBoolean(key, def)
         override fun setValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>, value: Boolean) =
@@ -75,6 +83,8 @@ class Settings(context: Context) {
         const val K_SHUFFLE = "shuffle"
         const val K_TRANSITION = "transition"
         const val K_FILL = "fill"
+        /** Préfixe des réglages par photo, suivi de l'URI de la photo. */
+        const val K_TRANSFORM = "transform:"
 
         /** Diffusion interne demandant au fond d'écran de passer à la photo suivante. */
         const val ACTION_NEXT = "app.diaporama.NEXT"
