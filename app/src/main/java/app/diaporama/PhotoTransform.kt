@@ -1,6 +1,7 @@
 package app.diaporama
 
 import android.graphics.Matrix
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -20,12 +21,17 @@ data class PhotoTransform(val scale: Float = 1f, val rotation: Float = 0f, val d
     /** Nombre de quarts de tour le plus proche : au-delà de 45°, le cadrage se fait sur la photo couchée. */
     val quarterOdd: Boolean get() = Math.floorMod((rotation / 90f).roundToInt(), 2) == 1
 
-    /** Échelle du cadrage général, avant [scale]. */
+    /**
+     * Échelle du cadrage général, avant [scale]. En Remplir, la photo inclinée grossit juste assez
+     * pour couvrir encore tout l'écran, sans coin vide.
+     */
     fun baseScale(bw: Float, bh: Float, w: Float, h: Float, mode: FillMode): Float {
         val iw = if (quarterOdd) bh else bw
         val ih = if (quarterOdd) bw else bh
+        val a = Math.toRadians(tilt.toDouble())
+        val c = abs(cos(a)).toFloat(); val s = abs(sin(a)).toFloat()
         return when (mode) {
-            FillMode.FILL -> max(w / iw, h / ih)
+            FillMode.FILL -> max((w * c + h * s) / iw, (w * s + h * c) / ih)
             FillMode.FIT -> min(w / iw, h / ih)
             FillMode.CENTER -> min(1f, min(w / iw, h / ih))
         }

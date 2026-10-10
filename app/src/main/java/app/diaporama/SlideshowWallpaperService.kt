@@ -250,7 +250,10 @@ class SlideshowWallpaperService : WallpaperService() {
         /** Décode juste assez grand pour l'écran, en tenant compte du zoom propre à la photo. */
         private fun decode(uri: Uri, w: Int, h: Int, t: PhotoTransform): Bitmap {
             val src = ImageDecoder.createSource(contentResolver, uri)
-            val zoom = t.scale.coerceIn(1f, 4f)
+            // Zoom total : celui de la photo et celui dû à l'inclinaison
+            val tiltZoom = t.baseScale(1f, 1f, w.toFloat(), h.toFloat(), FillMode.FILL) /
+                t.copy(rotation = t.quarter * 90f).baseScale(1f, 1f, w.toFloat(), h.toFloat(), FillMode.FILL)
+            val zoom = (t.scale * tiltZoom).coerceIn(1f, 4f)
             return ImageDecoder.decodeBitmap(src) { dec, info, _ ->
                 dec.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 val iw = info.size.width; val ih = info.size.height
